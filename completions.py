@@ -6,8 +6,17 @@ from concurrent.futures import ThreadPoolExecutor
 from dotenv import get_key, load_dotenv
 from openai import AsyncOpenAI, OpenAI
 
-from functions import query_exec, async_query_exec, get_current_datetime, async_get_current_datetime, get_current_weather, async_get_current_weather
-from tools import tools
+from enumerations import EffortType, MessageType, ModelType, VerbosityType
+from functions import (
+    async_get_current_datetime,
+    async_get_current_weather,
+    get_current_datetime,
+    get_current_weather,
+)
+from tools.pg_tool import execute_query, async_execute_query
+from json_tools import tools, table_names
+from tools.email_tool import send_email, async_send_email
+from tools.excel_tool import manipulate_xlsx, async_manipulate_xlsx
 
 load_dotenv(".env")
 
@@ -17,8 +26,8 @@ class Completions:
         self,
         api_key,
         name="Completions",
-        model="gpt-5",
-        messages=[],
+        model=ModelType.GPT_5.value,
+        prompt="",
         json_tools=[],
         functions={},
         tool_choice="auto",
@@ -32,26 +41,37 @@ class Completions:
         self.__tool_choice: str = tool_choice
         self.__error_response: str = error_response
         self.__response = None
-        self.__messages = messages
-        self.__roles = ["user", "assistant", "system", "tool"]
+        if prompt:
+            self.__messages = [
+                {
+                    "role": MessageType.DEVELOPER.value,
+                    "content": prompt,
+                }
+            ]
+        else:
+            self.__messages = []
+            
 
     def set_messages(self, messages: list[dict]):
         if messages:
             for id, msg in enumerate(messages):
-                if msg["role"] not in self.__roles:
+                if not MessageType.has_value(msg["role"]):
                     print(
-                        f"Invalid role {msg['role']} in the {id + 1} message, must be one of: {self.__roles}"
+                        f"Invalid role {msg['role']} in the {id + 1} message, must be one of: {MessageType.list_values()}"
                     )
                     return False
 
             self.__messages = messages
             return True
 
+        print("messages is empty")
+        return False
+
     def get_messages(self):
         return self.__messages
 
     def add_msg(self, message: str, role: str):
-        if role in self.__roles:
+        if MessageType.has_value(role):
             self.__messages.append(
                 {
                     "role": role,
@@ -60,25 +80,27 @@ class Completions:
             )
             return True
 
-        print(f"Invalid role {role}, must be one of: {self.__roles}")
+        print(f"Invalid role {role}, must be one of: {MessageType.list_values()}")
         return False
 
     def send_message(self, message: str) -> str | None:
         self.__last_time = time.time()
         print(f"Running {self.__model} with {len(self.__functions)} tools")
-        self.add_msg(message, "user")
+        self.add_msg(message, MessageType.USER.value)
 
         while True:
             self._generate_response()
 
             functions_called = [
-                item for item in self.__response.output if item.type == "function_call"
+                item
+                for item in self.__response.output
+                if item.type == MessageType.FUNCTION_CALL.value
             ]
 
             custom_tools_called = [
                 item
                 for item in self.__response.output
-                if item.type == "custom_tool_call"
+                if item.type == MessageType.CUSTOM_TOOL_CALL.value
             ]
 
             if not functions_called and not custom_tools_called:
@@ -93,14 +115,14 @@ class Completions:
         return self._get_response()
 
     def _generate_response(self):
-        if self.__model == "gpt-5":
+        if self.__model == ModelType.GPT_5.value:
             self.__response = self.__client.responses.create(
                 model=self.__model,
                 input=self.__messages,
                 tools=self.__json_tools,
                 tool_choice=self.__tool_choice,  # type: ignore
-                text={"verbosity": "low"},
-                reasoning={"effort": "minimal"},
+                text={"verbosity": VerbosityType.LOW.value},
+                reasoning={"effort": EffortType.MINIMAL.value},
             )
         else:
             self.__response = self.__client.responses.create(
@@ -119,7 +141,12 @@ class Completions:
             if item.type == "message":
                 ans = item.content[0].text
                 print(f"{self.__model}: {ans}")
-                print(f"Performance de {self.__model}: {time.time() - self.__last_time}")
+
+                self.add_msg(ans, MessageType.ASSISTANT.value)
+
+                print(
+                    f"Performance de {self.__model}: {time.time() - self.__last_time}"
+                )
                 return ans
 
         return "No Answer"
@@ -197,6 +224,7 @@ class Completions_v2(Completions):
             try:
                 function_response = function_to_call(**function_args)
                 print(f"{tool._Completions__model}: {function_response[:100]}")  # type: ignore
+
             except Exception as exc:
                 print(f"{tool.name}: {exc}")
                 function_response = self._Completions__error_response
@@ -217,6 +245,7 @@ class Completions_v2(Completions):
             try:
                 function_response = function_to_call(tool.input)
                 print(f"{tool.name}: {function_response[:100]}")  # type: ignore
+
             except Exception as exc:
                 print(f"{tool.name}: {exc}")
                 function_response = self._Completions__error_response
@@ -238,8 +267,8 @@ class Completions_v3(Completions):
         self,
         api_key,
         name="Completions (async)",
-        model="gpt-5",
-        messages=[],
+        model=ModelType.GPT_5.value,
+        prompt="",
         json_tools=[],
         functions={},
         tool_choice="auto",
@@ -250,7 +279,7 @@ class Completions_v3(Completions):
             api_key,
             name,
             model,
-            messages,
+            prompt,
             json_tools,
             functions,
             tool_choice,
@@ -262,7 +291,7 @@ class Completions_v3(Completions):
         print(
             f"Running {self._Completions__model} with {len(self._Completions__functions)} tools"
         )
-        self.add_msg(message, "user")
+        self.add_msg(message, MessageType.USER.value)
 
         while True:
             self._generate_response()
@@ -270,13 +299,13 @@ class Completions_v3(Completions):
             functions_called = [
                 item
                 for item in self._Completions__response.output
-                if item.type == "function_call"
+                if item.type == MessageType.FUNCTION_CALL.value
             ]
 
             custom_tools_called = [
                 item
                 for item in self._Completions__response.output
-                if item.type == "custom_tool_call"
+                if item.type == MessageType.CUSTOM_TOOL_CALL.value
             ]
 
             if functions_called:
@@ -352,25 +381,40 @@ if __name__ == "__main__":
     async_functions = {
         "get_current_datetime": async_get_current_datetime,
         "get_current_weather": async_get_current_weather,
-        "query_exec": async_query_exec,
+        "execute_query": async_execute_query,
+        "send_email": async_send_email,
+        "manipulate_xlsx": async_manipulate_xlsx,
     }
 
     functions = {
         "get_current_datetime": get_current_datetime,
         "get_current_weather": get_current_weather,
-        "query_exec": query_exec,
+        "execute_query": execute_query,
+        "send_email": send_email,
+        "manipulate_xlsx": manipulate_xlsx,
     }
 
-    bot = Completions_v3(
+    prompt = f"""
+        Solo ejecuta consultas SQL de lectura. La base de datos a la que tienes acceso es de Odoo 17. Estas son las tablas disponibles: {table_names}
+    """
+
+    async_bot = Completions_v3(
         api_key=get_key(".env", "OPENAI_API_KEY"),
+        prompt=prompt,
         functions=async_functions,
         json_tools=tools,
-        model="gpt-5",
+    )
+
+    bot = Completions(
+        api_key=get_key(".env", "OPENAI_API_KEY"),
+        prompt=prompt,
+        functions=functions,
+        json_tools=tools,
     )
 
     msg = """
-        cuantos usuarios hay en la base de datos
+        lleva los usuarios de la base de datos al excel usuarios.xlsx
         """
 
-    #bot.send_message(msg)
-    asyncio.run(bot.send_message(msg))
+    # bot.send_message(msg)
+    asyncio.run(async_bot.send_message(msg))

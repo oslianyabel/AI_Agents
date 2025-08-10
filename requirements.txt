@@ -1,0 +1,9 @@
+aiosmtplib # async emails
+
+openai # OpenAI SDK
+
+python-dotenv # env
+
+psycopg2 # postgres
+
+openpyxl # xlsx

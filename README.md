@@ -19,7 +19,7 @@ pip install openai python-dotenv
 ## Uso Básico
 
 ```python
-from completions import Completions, Completions_v3
+from completions import Completions
 from tools import tools
 
 def get_current_datetime():
