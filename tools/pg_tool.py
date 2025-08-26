@@ -98,10 +98,10 @@ def execute_query(input_query: str) -> json:
 
 if __name__ == "__main__":
 
-    async def main():
-        result = await execute_query(
+    def main():
+        result = execute_query(
             "SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"
         )
         print(result)
 
-    asyncio.run(main())
+    main()

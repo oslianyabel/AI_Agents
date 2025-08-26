@@ -48,8 +48,42 @@ class Completions:
                     "content": prompt,
                 }
             ]
+            # Save initial prompt message for future resets
+            self.__initial_prompt_msg = self.__messages[0].copy()
         else:
             self.__messages = []
+            self.__initial_prompt_msg = None
+    
+    # Shared helpers to reduce duplication across sync/async implementations
+    def _web_search_enabled(self) -> bool:
+        # Detect flag regardless of subclass name mangling
+        for attr in ("_Completions__web_search", "_AsyncCompletions__web_search", "__web_search"):
+            if getattr(self, attr, False):
+                return True
+        return False
+
+    def _prepare_web_search_tools(self) -> None:
+        if self._web_search_enabled():
+            try:
+                if isinstance(self.__json_tools, list):
+                    if not any(isinstance(t, dict) and t.get("type") == "web_search_preview" for t in self.__json_tools):
+                        self.__json_tools.append({"type": "web_search_preview"})
+            except AttributeError:
+                pass
+
+    def _build_response_params(self) -> dict:
+        params = {
+            "model": self.__model,
+            "input": self.__messages,
+            "tools": self.__json_tools,
+            "tool_choice": self.__tool_choice,  # type: ignore
+        }
+        if self.__model == ModelType.GPT_5.value:
+            params.update({"text": {"verbosity": VerbosityType.LOW.value}})
+            # Reasoning effort cannot be used with web_search tools
+            if not self._web_search_enabled():
+                params.update({"reasoning": {"effort": EffortType.MINIMAL.value}})
+        return params
             
 
     def set_messages(self, messages: list[dict]):
@@ -70,6 +104,14 @@ class Completions:
     def get_messages(self):
         return self.__messages
 
+    def reset_history(self):
+        """Clear conversation history leaving only the initial prompt (if any)."""
+        if getattr(self, "_Completions__initial_prompt_msg", None):
+            self.__messages = [self.__initial_prompt_msg.copy()]
+        else:
+            self.__messages = []
+        return True
+
     def add_msg(self, message: str, role: str):
         if MessageType.has_value(role):
             self.__messages.append(
@@ -83,8 +125,9 @@ class Completions:
         print(f"Invalid role {role}, must be one of: {MessageType.list_values()}")
         return False
 
-    def send_message(self, message: str) -> str | None:
+    def send_message(self, message: str, web_search: bool = False) -> str | None:
         self.__last_time = time.time()
+        self.__web_search = web_search
         print(f"Running {self.__model} with {len(self.__functions)} tools")
         self.add_msg(message, MessageType.USER.value)
 
@@ -115,23 +158,9 @@ class Completions:
         return self._get_response()
 
     def _generate_response(self):
-        if self.__model == ModelType.GPT_5.value:
-            self.__response = self.__client.responses.create(
-                model=self.__model,
-                input=self.__messages,
-                tools=self.__json_tools,
-                tool_choice=self.__tool_choice,  # type: ignore
-                text={"verbosity": VerbosityType.LOW.value},
-                reasoning={"effort": EffortType.MINIMAL.value},
-            )
-        else:
-            self.__response = self.__client.responses.create(
-                model=self.__model,
-                input=self.__messages,
-                tools=self.__json_tools,
-                tool_choice=self.__tool_choice,  # type: ignore
-            )
-
+        self._prepare_web_search_tools()
+        params = self._build_response_params()
+        self.__response = self.__client.responses.create(**params)
         self.__messages += self.__response.output
 
     def _get_response(self):
@@ -162,6 +191,15 @@ class Completions:
             for tool in functions_called:
                 function_name = tool.name
                 print(f"function_name: {function_name}")
+
+                # Handle built-in tool: reset_history
+                if function_name == "reset_history":
+                    def run_reset():
+                        self.reset_history()
+                        return "Historial borrado."
+                    futures.append(executor.submit(run_reset))
+                    continue
+
                 function_to_call = self.__functions[function_name]
 
                 function_args = json.loads(tool.arguments)
@@ -262,7 +300,7 @@ class Completions_v2(Completions):
         )
 
 
-class Completions_v3(Completions):
+class AsyncCompletions(Completions):
     def __init__(
         self,
         api_key,
@@ -286,15 +324,16 @@ class Completions_v3(Completions):
             error_response,
         )
 
-    async def send_message(self, message: str) -> str | None:
+    async def send_message(self, message: str, web_search: bool = False) -> str | None:
         self._Completions__last_time = time.time()
+        self.__web_search = web_search
         print(
             f"Running {self._Completions__model} with {len(self._Completions__functions)} tools"
         )
         self.add_msg(message, MessageType.USER.value)
 
         while True:
-            self._generate_response()
+            await self._generate_response()
 
             functions_called = [
                 item
@@ -320,6 +359,17 @@ class Completions_v3(Completions):
 
         return self._get_response()
 
+    async def _generate_response(self):
+        # Common preparation (reuse base helpers)
+        self._prepare_web_search_tools()
+
+        # Build common params and make async call
+        params = self._build_response_params()
+        self._Completions__response = await self.__async_client.responses.create(**params)
+
+        # Append outputs to messages
+        self._Completions__messages += self._Completions__response.output
+
     async def _run_functions(
         self,
         functions_called,
@@ -330,6 +380,11 @@ class Completions_v3(Completions):
         for tool in functions_called:
             function_name = tool.name
             print(f"function_name: {function_name}")
+            # Handle built-in tool: reset_history
+            if function_name == "reset_history":
+                tasks.append(self._async_reset_history())
+                continue
+
             function_to_call = self._Completions__functions[function_name]
 
             function_args = json.loads(tool.arguments)
@@ -340,6 +395,10 @@ class Completions_v3(Completions):
         results: list[str] = await asyncio.gather(*tasks, return_exceptions=True)
 
         self._set_tool_answers(functions_called, results)
+
+    async def _async_reset_history(self):
+        self.reset_history()
+        return "Historial borrado."
 
     async def _run_custom_tools(
         self,
@@ -398,7 +457,7 @@ if __name__ == "__main__":
         Solo ejecuta consultas SQL de lectura. La base de datos a la que tienes acceso es de Odoo 17. Estas son las tablas disponibles: {table_names}
     """
 
-    async_bot = Completions_v3(
+    async_bot = AsyncCompletions(
         api_key=get_key(".env", "OPENAI_API_KEY"),
         prompt=prompt,
         functions=async_functions,
@@ -412,9 +471,42 @@ if __name__ == "__main__":
         json_tools=tools,
     )
 
-    msg = """
-        lleva los usuarios de la base de datos al excel usuarios.xlsx
-        """
+    async def chat_loop():
+        web_search = True
+        print("\nComenzando chat. Comandos disponibles:")
+        print("  /exit                -> salir")
+        print("  /web on              -> activar web search")
+        print("  /web off             -> desactivar web search")
+        print("")
 
-    # bot.send_message(msg)
-    asyncio.run(async_bot.send_message(msg))
+        while True:
+            user_input = await asyncio.to_thread(input, "Tú> ")
+            if user_input is None:
+                continue
+            text = user_input.strip()
+            if not text:
+                continue
+
+            if text.lower() in ("/exit", "/quit", ":q"):
+                print("Saliendo…")
+                break
+
+            if text.lower() in ("/web on", "/web_on", "/webon"):
+                web_search = True
+                print("Web search ACTIVADO.")
+                continue
+
+            if text.lower() in ("/web off", "/web_off", "/weboff"):
+                web_search = False
+                print("Web search DESACTIVADO.")
+                continue
+
+            # Send message to async bot
+            try:
+                answer = await async_bot.send_message(text, web_search=web_search)
+                if answer is not None:
+                    print(f"Bot> {answer}")
+            except Exception as e:
+                print(f"Error: {e}")
+
+    asyncio.run(chat_loop())
