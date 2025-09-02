@@ -27,13 +27,18 @@ class Completions:
         api_key,
         name="Completions",
         model=ModelType.GPT_5.value,
+        base_url = None,
         prompt="",
         json_tools=[],
         functions={},
         tool_choice="auto",
         error_response="Ha ocurrido un error",
     ):
-        self.__client = OpenAI(api_key=api_key)
+        if base_url:
+            self.__client = OpenAI(api_key=api_key, base_url=base_url)
+        else:
+            self.__client = OpenAI(api_key=api_key)
+            
         self.name: str = name
         self.__model: str = model
         self.__json_tools: list = json_tools
@@ -53,6 +58,8 @@ class Completions:
         else:
             self.__messages = []
             self.__initial_prompt_msg = None
+        # Track tool messages temporarily to purge them after final assistant answer
+        self.__temp_tool_messages: list = []
     
     # Shared helpers to reduce duplication across sync/async implementations
     def _web_search_enabled(self) -> bool:
@@ -78,11 +85,13 @@ class Completions:
             "tools": self.__json_tools,
             "tool_choice": self.__tool_choice,  # type: ignore
         }
+
         if self.__model == ModelType.GPT_5.value:
             params.update({"text": {"verbosity": VerbosityType.LOW.value}})
             # Reasoning effort cannot be used with web_search tools
             if not self._web_search_enabled():
                 params.update({"reasoning": {"effort": EffortType.MINIMAL.value}})
+                
         return params
             
 
@@ -161,7 +170,14 @@ class Completions:
         self._prepare_web_search_tools()
         params = self._build_response_params()
         self.__response = self.__client.responses.create(**params)
-        self.__messages += self.__response.output
+        # Append outputs and mark tool-call items as temporary
+        for item in self.__response.output:
+            self.__messages.append(item)
+            if getattr(item, "type", "") in (
+                MessageType.FUNCTION_CALL.value,
+                MessageType.CUSTOM_TOOL_CALL.value,
+            ):
+                self.__temp_tool_messages.append(item)
 
     def _get_response(self):
         # print(self._Completions__response.model_dump_json(indent=2))
@@ -173,12 +189,23 @@ class Completions:
 
                 self.add_msg(ans, MessageType.ASSISTANT.value)
 
+                # Purge temporary tool messages from history after finalizing answer
+                self._purge_temp_tool_messages()
+
                 print(
                     f"Performance de {self.__model}: {time.time() - self.__last_time}"
                 )
                 return ans
 
         return "No Answer"
+
+    def _purge_temp_tool_messages(self):
+        # Remove any tool-related temporary messages from the conversation history
+        if getattr(self, "_Completions__temp_tool_messages", None):
+            self.__messages = [
+                m for m in self.__messages if m not in self.__temp_tool_messages
+            ]
+            self.__temp_tool_messages.clear()
 
     def _run_functions(
         self,
@@ -235,13 +262,13 @@ class Completions:
                 print(f"{tool.name}: {exc}")
                 function_response = self.__error_response
 
-            self.__messages.append(
-                {
-                    "type": "function_call_output",
-                    "call_id": tool.call_id,
-                    "output": str(function_response),
-                }
-            )
+            msg = {
+                "type": "function_call_output",
+                "call_id": tool.call_id,
+                "output": str(function_response),
+            }
+            self.__messages.append(msg)
+            self.__temp_tool_messages.append(msg)
 
 
 class Completions_v2(Completions):
@@ -291,13 +318,13 @@ class Completions_v2(Completions):
             self._set_tool_answer(tool, function_response)
 
     def _set_tool_answer(self, tool, function_response):
-        self._Completions__messages.append(
-            {
-                "type": "function_call_output",
-                "call_id": tool.call_id,
-                "output": str(function_response),
-            }
-        )
+        msg = {
+            "type": "function_call_output",
+            "call_id": tool.call_id,
+            "output": str(function_response),
+        }
+        self._Completions__messages.append(msg)
+        self._Completions__temp_tool_messages.append(msg)
 
 
 class AsyncCompletions(Completions):
@@ -306,17 +333,23 @@ class AsyncCompletions(Completions):
         api_key,
         name="Completions (async)",
         model=ModelType.GPT_5.value,
+        base_url = None,
         prompt="",
         json_tools=[],
         functions={},
         tool_choice="auto",
         error_response="Ha ocurrido un error",
     ):
-        self.__async_client = AsyncOpenAI(api_key=api_key)
+        if base_url:
+            self.__async_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        else:
+            self.__async_client = AsyncOpenAI(api_key=api_key)
+
         super().__init__(
             api_key,
             name,
             model,
+            base_url,
             prompt,
             json_tools,
             functions,
@@ -347,15 +380,14 @@ class AsyncCompletions(Completions):
                 if item.type == MessageType.CUSTOM_TOOL_CALL.value
             ]
 
+            if not functions_called and not custom_tools_called:
+                break
+
             if functions_called:
                 await self._run_functions(functions_called)
-                continue
 
             if custom_tools_called:
                 await self._run_custom_tools(custom_tools_called)
-                continue
-
-            break
 
         return self._get_response()
 
@@ -367,8 +399,14 @@ class AsyncCompletions(Completions):
         params = self._build_response_params()
         self._Completions__response = await self.__async_client.responses.create(**params)
 
-        # Append outputs to messages
-        self._Completions__messages += self._Completions__response.output
+        # Append outputs to messages and mark tool-call items as temporary
+        for item in self._Completions__response.output:
+            self._Completions__messages.append(item)
+            if getattr(item, "type", "") in (
+                MessageType.FUNCTION_CALL.value,
+                MessageType.CUSTOM_TOOL_CALL.value,
+            ):
+                self._Completions__temp_tool_messages.append(item)
 
     async def _run_functions(
         self,
@@ -427,13 +465,13 @@ class AsyncCompletions(Completions):
             else:
                 print(f"{tool.name}: {function_response[:100]}")  # type: ignore
 
-            self._Completions__messages.append(
-                {
-                    "type": "function_call_output",
-                    "call_id": tool.call_id,
-                    "output": str(function_response),
-                }
-            )
+            msg = {
+                "type": "function_call_output",
+                "call_id": tool.call_id,
+                "output": str(function_response),
+            }
+            self._Completions__messages.append(msg)
+            self._Completions__temp_tool_messages.append(msg)
 
 
 if __name__ == "__main__":
@@ -493,19 +531,17 @@ if __name__ == "__main__":
 
             if text.lower() in ("/web on", "/web_on", "/webon"):
                 web_search = True
-                print("Web search ACTIVADO.")
+                print("Web search ACTIVADO")
                 continue
 
             if text.lower() in ("/web off", "/web_off", "/weboff"):
                 web_search = False
-                print("Web search DESACTIVADO.")
+                print("Web search DESACTIVADO")
                 continue
 
             # Send message to async bot
             try:
-                answer = await async_bot.send_message(text, web_search=web_search)
-                if answer is not None:
-                    print(f"Bot> {answer}")
+                await async_bot.send_message(text, web_search=web_search)
             except Exception as e:
                 print(f"Error: {e}")
 

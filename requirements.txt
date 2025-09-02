@@ -7,3 +7,5 @@ python-dotenv # env
 psycopg2 # postgres
 
 openpyxl # xlsx
+
+httpx # proxy-capable HTTP client
