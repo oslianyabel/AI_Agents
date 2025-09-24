@@ -9,7 +9,9 @@ from functions import get_current_datetime, get_current_weather
 from tools.email_tool import send_email
 from tools.excel_tool import manipulate_xlsx
 from tools.pg_tool import execute_query
+from tools.mssql_tool import execute_mssql_query
 from json_tools_v2 import tools, table_names
+from enumerations import MessageType
 
 load_dotenv()
 
@@ -45,7 +47,7 @@ class Completions:
         # Internal conversation history (Chat Completions format)
         self.messages: list[dict] = []
         if prompt:
-            initial = {"role": "system", "content": prompt.strip()}
+            initial = {"role": MessageType.SYSTEM.value, "content": prompt.strip()}
             self.messages.append(initial)
             # Keep a copy to allow resets
             self._initial_system_msg = initial.copy()
@@ -67,9 +69,10 @@ class Completions:
                 try:
                     response = self.client.chat.completions.create(
                         model=self.model,
-                        messages=self.messages,
+                        messages=self.messages, # type: ignore
                         tools=self.json_tools,
-                        tool_choice=self.tool_choice,
+                        functions=self.functions,
+                        tool_choice=self.tool_choice, # type: ignore
                     )
                     break
                 except Exception as e:
@@ -94,7 +97,7 @@ class Completions:
 
             break
 
-        ans = response.choices[0].message.content.strip()
+        ans = response.choices[0].message.content.strip() # type: ignore
         print(f"{self.name}: {ans}")
         # Add assistant answer to history
         self.messages.append({"role": "assistant", "content": ans})
@@ -172,7 +175,7 @@ class Completions:
         """Borra el historial dejando solo el prompt inicial (si existe)."""
         if getattr(self, "_initial_system_msg", None):
             self.messages = [
-                self._initial_system_msg.copy(),
+                self._initial_system_msg.copy(), # type: ignore
                 {
                     "role": "system",
                     "content": "historial eliminado. Preséntate ante el usuario y explícale que la conversación ha sido reiniciada.",
@@ -223,13 +226,14 @@ if __name__ == "__main__":
         "send_email": send_email,
         "manipulate_xlsx": manipulate_xlsx,
         "execute_query": execute_query,
+        "execute_mssql_query": execute_mssql_query,
     }
 
     # 2) Prompt del sistema (contexto)
     prompt = f"""
 Eres un asistente que puede utilizar herramientas. 
-- Tienes acceso a una base de datos PostgreSQL empleada por Odoo, si necesitas consultarla solo tienes permitido realizar consultas SELECT
-- Puedes usar: clima, fecha/hora, envío de correo y manipulación de archivos .xlsx.
+- Tienes acceso a bases de datos (PostgreSQL y SQL Server); si necesitas consultarlas solo tienes permitido realizar consultas SELECT.
+- Puedes usar: clima, fecha/hora, envío de correo, manipulación de archivos .xlsx y consultas SQL de solo lectura.
 - Sé conciso y responde en español.
 Tablas conocidas de la BD: {table_names}
 """

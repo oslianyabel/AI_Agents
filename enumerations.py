@@ -9,6 +9,12 @@ class ModelType(Enum):
     GPT_5_mini = "gpt-5-mini"
     GPT_5_nano = "gpt-5-nano"
 
+    AGENT_XS = "agent-xs"
+    AGENT_SM = "agent-sm"
+    AGENT_MD = "agent-md"
+    AGENT_LG = "agent-lg"
+    AGENT_XL = "agent-xl"
+
     @classmethod
     def has_value(cls, value: str) -> bool:
         return value in cls._value2member_map_

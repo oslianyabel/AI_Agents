@@ -9,3 +9,5 @@ psycopg2 # postgres
 openpyxl # xlsx
 
 httpx # proxy-capable HTTP client
+
+pyodbc # SQL Server via ODBC

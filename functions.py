@@ -6,7 +6,16 @@ def get_current_datetime():
 
 
 def get_current_weather(city: str):
-    return "24 grados celcius"
+    print(f"get_current_weather: {city}")
+
+    return {
+        "city": city,
+        "temperature": 24,
+        "unit": "celsius",
+        "description": "Soleado",
+        "humidity": 65,
+        "wind_speed": 10,
+    }
 
 
 async def async_get_current_datetime():
@@ -14,7 +23,16 @@ async def async_get_current_datetime():
 
 
 async def async_get_current_weather(city: str):
-    return "24 grados celcius"
+    print(f"async_get_current_weather: {city}")
+
+    return {
+        "city": city,
+        "temperature": 24,
+        "unit": "celsius",
+        "description": "Soleado",
+        "humidity": 65,
+        "wind_speed": 10,
+    }
 
 
 if __name__ == "__main__":

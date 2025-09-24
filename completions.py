@@ -145,7 +145,7 @@ class Completions:
 
             functions_called = [
                 item
-                for item in self.__response.output
+                for item in self.__response.z
                 if item.type == MessageType.FUNCTION_CALL.value
             ]
 
