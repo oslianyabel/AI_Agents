@@ -1,133 +1,151 @@
-# IA Completions Library
+# AI Agents Library
 
-Esta librería proporciona una interfaz flexible para interactuar con modelos de lenguaje de OpenAI, permitiendo la integración de herramientas y funciones personalizadas (sincrónicas y asíncronas) en flujos conversacionales.
+Una biblioteca completa para crear agentes de IA conversacionales con soporte para múltiples proveedores (OpenAI y Avangenio) y herramientas integradas.
 
-## Características
+## 🚀 Características
 
-- Soporte para modelos OpenAI (incluyendo GPT-4, GPT-5, etc.)
-- Soporte para modelos Avangenio (agent-xs, agent-md, …) vía API Gateway
-- Ejecución de funciones y herramientas personalizadas (sync y async)
-- Integración sencilla de nuevas herramientas
-- Manejo de mensajes y contexto conversacional
-- Ejecución de código y consultas a APIs externas
+- **Múltiples Proveedores de IA**: Soporte para OpenAI (GPT-4, GPT-5) y Avangenio (agent-xs, agent-md, etc.)
+- **Configuración Automática**: Detección automática del proveedor y modelo basado en variables de entorno
+- **Herramientas Integradas**: Email, Excel, bases de datos (PostgreSQL, SQL Server), clima(pruebas), fecha/hora
+- **Soporte de Proxy**: Configuración automática de proxy HTTP para entornos corporativos
+- **Interfaz de Consola**: Chat interactivo por consola con comandos especiales
+- **Reasoning Display**: Visualización del proceso de razonamiento del modelo
+- **Gestión de Memoria**: Sistema de memoria de chat persistente por usuario
 
-## Instalación
+## 📋 Requisitos
 
+### Dependencias Básicas
 ```bash
-pip install openai python-dotenv
+pip install -r requirements.txt
 ```
 
-## Uso Básico (OpenAI)
+## ⚙️ Configuración
 
-```python
-from completions import Completions
-from tools import tools
+### Variables de Entorno
 
-def get_current_datetime():
-    return str(datetime.now())
+Crea un archivo `.env` en el directorio raíz con las siguientes variables:
 
-bot = Completions(
-    api_key="TU_API_KEY",
-    functions={"get_current_datetime": get_current_datetime},
-    json_tools=tools,
-    model="gpt-5",
-)
-respuesta = bot.send_message("¿Qué hora es?")
-print(respuesta)
-
-```
-
-## Soporte Avangenio (v2 y v3)
-
-Esta librería incluye integración con el gateway de Avangenio en `completions_v2.py` (chat con tools estilo Chat Completions) y `completions_v3.py` (ejemplo mínimo).
-
-Variables de entorno necesarias:
-
-- `AVANGENIO_API_KEY`: clave del gateway.
-- Base URL utilizada: `https://apigateway.avangenio.net` (ya configurada en código).
-
-Ejemplo (v2: manejo de historial interno y tools):
-
+#### Configuración del Agente
 ```bash
-python completions_v2.py
+# Tipo de agente: OPENAI o AVANGENIO
+AGENT_VERSION=OPENAI
+
+# Modelos disponibles
+OPENAI_MODEL=gpt-5
+AVANGENIO_MODEL=agent-md
+
+# API Keys
+OPENAI_API_KEY=tu-clave-openai
+AVANGENIO_API_KEY=tu-clave-avangenio
 ```
 
-`completions_v2.py` inicializa el bot con un prompt del sistema y habilita tools como:
+#### Configuración de Proxy (Opcional)
+```bash
+HTTP_PROXY=http://usuario:password@proxy.host:puerto
+```
 
-- `get_current_datetime`, `get_current_weather`
-- `send_email`
-- `manipulate_xlsx`
-- `execute_query` (solo SELECT sobre PostgreSQL)
+#### Configuración de Base de Datos (Opcional)
+```bash
+# PostgreSQL
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=mi_base_datos
+POSTGRES_USER=usuario
+POSTGRES_PASSWORD=password
 
-Características de v2:
+# SQL Server
+MSSQL_SERVER=localhost
+MSSQL_DATABASE=mi_base_datos
+MSSQL_USER=usuario
+MSSQL_PASSWORD=password
+MSSQL_DRIVER=ODBC Driver 18 for SQL Server
+MSSQL_PORT=1433
+```
 
-- Manejo interno del historial: `submit_message("hola")` agrega el mensaje y la respuesta.
-- Mensajes de herramientas se agregan temporalmente y se purgan tras la respuesta final.
-- `reset_history` limpia el historial dejando solo el prompt inicial.
-- Si `reset_history` se llama junto con otras tools, no se ejecuta y devuelve: "no es posible limpiar el chat durante le ejecucion de otras herramientas".
-- Reintentos con backoff exponencial ante errores 429 (rate limit).
+#### Configuración de Email (Opcional)
+```bash
+GMAIL_USER=tu-email@gmail.com
+GMAIL_PASSWORD=tu-app-password
+```
 
-Ejemplo (v3: snippet mínimo de Chat Completions):
+## 🎯 Uso Rápido
 
+### Ejecutar Chat de Consola
+```bash
+python console_chat.py
+```
+
+El sistema detectará automáticamente tu configuración basándose en las variables de entorno.
+
+### Uso Programático
+
+#### Agente OpenAI
 ```python
-from openai import OpenAI
+from agent import Agent
+from enumerations import ModelType
 
-client = OpenAI(
-    api_key="<AVANGENIO_API_KEY>",
-    base_url="https://apigateway.avangenio.net",
-)
+# tools/mi_herramienta.py
+def mi_funcion_personalizada(parametro: str) -> str:
+    return f"Procesado: {parametro}"
 
-completion = client.chat.completions.create(
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "How many days are in a year?"},
-    ],
-    model="agent-xs",
-)
+rag_functions = {"mi_funcion_personalizada": mi_funcion_personalizada}
 
-print(completion.choices[0].message.content)
-```
-
-Nota: No expongas tu API key en código fuente; usa variables de entorno.
-
-## Estructura
-
-- `completions.py`: Clases principales para gestionar la conversación y la integración de herramientas (OpenAI Responses API con tools).
-- `completions_v2.py`: Integración con Avangenio (Chat Completions + tools, historial interno y backoff).
-- `completions_v3.py`: Ejemplo mínimo usando Avangenio Chat Completions.
-- `functions.py`: Funciones personalizadas (sync y async) que puedes conectar como herramientas.
-- `tools.py` / `json_tools_v2.py`: Definición de herramientas para el modelo.
-
-## Definición de herramientas en formato json
-
-tools = [
+# json_tools_v2.py
+rag_prompt = [
     {
         "type": "function",
-        "name": "get_current_weather",
-        "description": "Obtiene la temperatura actual de una ciudad",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "city": {
-                    "type": "string",
-                    "description": "Nombre de la ciudad",
+        "function": {
+            "name": "mi_funcion_personalizada",
+            "description": "Descripción de mi función",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "parametro": {
+                        "type": "string",
+                        "description": "Descripción del parámetro"
+                    }
                 },
-            },
-            "required": ["city"],
-        },
-    },
-    {
-        "type": "function",
-        "name": "get_current_datetime",
-        "description": "Obtiene fecha y hora actual",
-    },
-    {
-        "type": "custom",
-        "name": "query_exec",
-        "description": "Ejecuta una consulta SQL en PostgreSQL",
-    },
+                "required": ["parametro"]
+            }
+        }
+    }
 ]
 
-## Licencia
+agent = Agent(name="Mi Agente", model=ModelType.GPT_5.value)
 
-MIT
+response = agent.process_msg(
+    message="¿Cuál es el clima en Madrid?",
+    user_id=1,  # importante para persistir los mensajes por usuario
+    rag_functions=rag_functions,
+    rag_prompt=rag_prompt
+)
+print(response)
+```
+
+## 🛠️ Herramientas Disponibles
+
+### Herramientas Básicas
+- **get_current_datetime**: Obtiene fecha y hora actual
+- **get_current_weather**: Obtiene información del clima de una ciudad(pruebas)
+
+### Herramientas de Comunicación
+- **send_email**: Envía emails con adjuntos via Gmail
+
+### Herramientas de Datos
+- **manipulate_xlsx**: Lee, escribe y modifica archivos Excel
+- **execute_query**: Ejecuta consultas SELECT en PostgreSQL
+- **execute_sql_server_query**: Ejecuta consultas SELECT en SQL Server
+
+### Herramientas Web
+- **web_search**: Búsqueda web (solo OpenAI)
+
+## 🔧 Configuración Avanzada
+
+### Modelos Disponibles
+
+#### OpenAI
+- `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
+- `gpt-5`, `gpt-5-mini`, `gpt-5-nano`
+
+#### Avangenio
+- `agent-xs`, `agent-sm`, `agent-md`, `agent-lg`, `agent-xl`
