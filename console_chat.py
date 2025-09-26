@@ -172,13 +172,6 @@ class ConsoleChat:
             return None
 
     def tool_execution_callback(self, message: str) -> None:
-        """
-        Callback function called when the agent is about to execute tools.
-
-        Args:
-            message: The assistant's message before tool execution
-        """
-        # Calculate the width based on the message length
         content = f"🔧 {self.agent.name}: {message}"
         width = max(50, len(content) + 4)  # Minimum 50 chars, or content + padding
 
@@ -225,20 +218,16 @@ class ConsoleChat:
         while self.running:
             user_input = self.get_user_input()
 
-            # Handle interruption
             if user_input is None:
                 break
 
-            # Skip empty input
             if not user_input:
                 continue
 
-            # Handle commands
             if user_input.startswith("/"):
                 self.handle_command(user_input)
                 continue
 
-            # Process regular message
             self.process_message(user_input)
 
         self.print_colored("\n¡Gracias por usar el chat de consola!", "system")

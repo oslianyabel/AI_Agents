@@ -308,6 +308,29 @@ class Agent:
         self._ai_client = AIClient(api_key)
         self._tool_runner = ToolRunner()
 
+    def run_callback(self, tool_execution_callback, user_id):
+        reasoning_items = [
+            item
+            for item in self.chat_memory.get_ai_output(user_id)
+            if item.type == "reasoning"
+        ]
+
+        if reasoning_items:
+            print(f"{len(reasoning_items)} reasoning items have founded")
+            reasoning_content = None
+            for reasoning_item in reasoning_items:
+                if hasattr(reasoning_item, "content") and reasoning_item.content:
+                    reasoning_content = reasoning_item.content
+                    break
+                elif hasattr(reasoning_item, "summary") and reasoning_item.summary:
+                    reasoning_content = reasoning_item.summary
+                    break
+
+            if reasoning_content:
+                tool_execution_callback(reasoning_content)
+
+        print("No reasoning content to show")
+
     def process_msg(
         self,
         message: str,
@@ -348,6 +371,9 @@ class Agent:
 
             if not functions_called and not custom_tools_called:
                 break
+
+            if tool_execution_callback:
+                self.run_callback(tool_execution_callback, user_id)
 
             if functions_called:
                 self._tool_runner._run_functions(
@@ -411,6 +437,9 @@ class Agent:
 
             if not functions_called and not custom_tools_called:
                 break
+
+            if tool_execution_callback:
+                self.run_callback(tool_execution_callback, user_id)
 
             if functions_called:
                 await self._tool_runner._async_run_functions(

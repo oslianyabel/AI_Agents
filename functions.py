@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 
 
 def get_current_datetime():
@@ -8,14 +9,16 @@ def get_current_datetime():
 def get_current_weather(city: str):
     print(f"get_current_weather: {city}")
 
-    return {
-        "city": city,
-        "temperature": 24,
-        "unit": "celsius",
-        "description": "Soleado",
-        "humidity": 65,
-        "wind_speed": 10,
-    }
+    return json.dumps(
+        {
+            "city": city,
+            "temperature": 24,
+            "unit": "celsius",
+            "description": "Soleado",
+            "humidity": 65,
+            "wind_speed": 10,
+        }
+    )
 
 
 async def async_get_current_datetime():

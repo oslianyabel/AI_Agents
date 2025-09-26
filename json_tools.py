@@ -100,6 +100,7 @@ tools = [
             "required": ["operation"],
         },
     },
+    {"type": "web_search"},
 ]
 
 print("OPENAI tools loaded")
