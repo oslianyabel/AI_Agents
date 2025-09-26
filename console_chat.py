@@ -1,53 +1,10 @@
-#!/usr/bin/env python3
-"""
-Console Chat Module for Agent
-Provides an interactive console interface for conversing with the Agent.
-"""
-
 import sys
 import os
 from typing import Optional
-from agent_v2 import Agent
+from agent_v2 import Agent as AvangenioAgent
 from agent import Agent as OpenAIAgent
-from enumerations import ModelType
-from functions import get_current_datetime, get_current_weather
+from tools import AVAILABLE_FUNCTIONS as rag_functions
 
-# Import optional tools with error handling
-rag_functions = {
-    "get_current_weather": get_current_weather,
-    "get_current_datetime": get_current_datetime,
-}
-
-rag_prompt = []
-
-# Try to import optional tools
-try:
-    from tools.email_tool import send_email
-
-    rag_functions["send_email"] = send_email
-except ImportError:
-    print("Warning: Email tool not available (missing dependencies)")
-
-try:
-    from tools.excel_tool import manipulate_xlsx
-
-    rag_functions["manipulate_xlsx"] = manipulate_xlsx
-except ImportError:
-    print("Warning: Excel tool not available (missing openpyxl)")
-
-try:
-    from tools.pg_tool import execute_query
-
-    rag_functions["execute_query"] = execute_query
-except ImportError:
-    print("Warning: PostgreSQL tool not available (missing psycopg2)")
-
-try:
-    from tools.sql_server_tool import execute_sql_server_query
-
-    rag_functions["execute_sql_server_query"] = execute_sql_server_query
-except ImportError:
-    print("Warning: MSSQL tool not available (missing pyodbc)")
 
 try:
     if os.getenv("AGENT_VERSION") == "OPENAI":
@@ -78,11 +35,11 @@ class ConsoleChat:
             proxy_url = os.getenv("HTTP_PROXY")
             if proxy_url:
                 print(f"Proxy detectado: {proxy_url[:50]}...")
-                self.agent = Agent(
+                self.agent = AvangenioAgent(
                     name=agent_name, model=avangenio_model, proxy_url=proxy_url
                 )
             else:
-                self.agent = Agent(name=agent_name, model=avangenio_model)
+                self.agent = AvangenioAgent(name=agent_name, model=avangenio_model)
 
             print(f"Using Avangenio Agent with model: {avangenio_model}")
 

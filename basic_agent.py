@@ -2,15 +2,9 @@ from openai import OpenAI
 import httpx
 import os
 
-# Configure proxy - can be set via environment variable HTTP_PROXY or hardcoded
-proxy_url = os.getenv("HTTP_PROXY", "http://osliani.figueiras:Dteam801*@proxy.desoft.cu:3128")
+proxy_url = os.getenv("HTTP_PROXY")
 
-# Create HTTP client with proxy configuration
-http_client = httpx.Client(
-    proxy=proxy_url,  # Use 'proxy' instead of 'proxies' for newer httpx versions
-    timeout=60.0,
-    verify=True  # Enable SSL verification
-)
+http_client = httpx.Client(proxy=proxy_url, timeout=60.0, verify=True)
 
 client = OpenAI(
     api_key="sk-Df9tniDmqHTzarp1X1W18REuVQFgaf39waPpU8CJ5ibHAQMs",

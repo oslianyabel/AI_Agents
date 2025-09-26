@@ -32,80 +32,83 @@ class ChatMemory:
         }
         self.__last_time: float
 
-    def get_ai_output(self, phone: str):
-        if phone not in self.__ai_output:
+    def get_ai_output(self, user_id: int):
+        if user_id not in self.__ai_output:
             return []
 
-        return self.__ai_output[phone].output
+        return self.__ai_output[user_id].output
 
-    def get_tool_msgs(self, phone: str):
-        if phone not in self.__tool_msgs:
+    def get_tool_msgs(self, user_id: int):
+        if user_id not in self.__tool_msgs:
             return []
-        return self.__tool_msgs[phone]
+        return self.__tool_msgs[user_id]
 
-    def get_messages(self, phone: str):
-        if phone not in self.__messages:
-            print(f"{phone} not found in memory")
-            self.init_chat(phone)
+    def get_messages(self, user_id: int, with_prompt: bool = True):
+        if user_id not in self.__messages:
+            print(f"{user_id} not found in memory")
+            self.init_chat(user_id)
 
-        return self.__messages[phone]
+        if with_prompt:
+            return self.__messages[user_id]
+        else:
+            return self.__messages[user_id][1:]
 
     def get_last_time(self):
         return self.__last_time
 
-    def _set_ai_output(self, ai_output, phone: str):
-        self.__ai_output[phone] = ai_output
+    def _set_ai_output(self, ai_output, user_id: int):
+        self.__ai_output[user_id] = ai_output
 
-        if phone not in self.__messages:
-            print(f"{phone} not found in memory")
+        if user_id not in self.__messages:
+            print(f"{user_id} not found in memory")
             return False
 
-        if phone not in self.__tool_msgs:
-            self.__tool_msgs[phone] = ai_output.output.copy()
+        if user_id not in self.__tool_msgs:
+            self.__tool_msgs[user_id] = ai_output.output.copy()
         else:
-            self.__tool_msgs[phone] += ai_output.output.copy()
+            self.__tool_msgs[user_id] += ai_output.output.copy()
 
-        self.__messages[phone] += ai_output.output.copy()
+        self.__messages[user_id] += ai_output.output.copy()
 
-    def _clean_tool_msgs(self, phone: str):
-        if phone not in self.__tool_msgs:
-            print(f"{phone} not have tool messages")
+    def _clean_tool_msgs(self, user_id: int):
+        if user_id not in self.__tool_msgs:
+            print(f"{user_id} not have tool messages")
 
-        self.__tool_msgs[phone] = []
+        self.__tool_msgs[user_id] = []
 
-    def has_chat(self, phone: str) -> bool:
-        return phone in self.__messages and len(self.__messages[phone]) > 0
+    def has_chat(self, user_id: int) -> bool:
+        return user_id in self.__messages and len(self.__messages[user_id]) > 0
 
-    def delete_chat(self, phone: str) -> None:
-        if phone in self.__messages:
-            del self.__messages[phone]
-        if phone in self.__tool_msgs:
-            del self.__tool_msgs[phone]
-        if phone in self.__ai_output:
-            del self.__ai_output[phone]
+    def delete_chat(self, user_id: int) -> None:
+        if user_id in self.__messages:
+            del self.__messages[user_id]
+        if user_id in self.__tool_msgs:
+            del self.__tool_msgs[user_id]
+        if user_id in self.__ai_output:
+            del self.__ai_output[user_id]
 
-    def init_chat(self, phone: str):
-        self.set_messages([self.init_msg], phone)
-        print(f"New chat for {phone}")
+    def init_chat(self, user_id: int):
+        self.set_messages([self.init_msg], user_id)
+        print(f"New chat for {user_id}")
 
-    def add_msg(self, message: str, role: str, phone: str):
-        if phone not in self.__messages:
-            self.init_chat(phone)
+    def add_msg(self, message: str, role: str, user_id: int):
+        if user_id not in self.__messages:
+            self.init_chat(user_id)
 
         if MessageType.has_value(role):
-            self.__messages[phone].append(
+            self.__messages[user_id].append(
                 {
                     "role": role,
                     "content": message,
                 }
             )
-            print(f"New message from {role} added to chat of {phone}")
+            print(f"New message from {role} added to chat of {user_id}")
             return True
 
         print(f"Invalid role {role}, must be one of: {MessageType.list_values()}")
         return False
 
-    def set_messages(self, messages: list[dict[str, str]], phone: str):
+    def set_messages(self, messages: list[dict[str, str]], user_id: int):
         if not isinstance(messages, list):
             raise SetMessagesError(f"messages must be a list, not {type(messages)}")
 
@@ -115,10 +118,10 @@ class ChatMemory:
                     f"Invalid role {msg['role']} in the {id + 1} message, must be one of: {MessageType.list_values()}"
                 )
 
-        self.__messages[phone] = messages
+        self.__messages[user_id] = messages
 
-    def _get_ai_msg(self, phone: str):
-        ai_output = self.get_ai_output(phone)
+    def _get_ai_msg(self, user_id: int):
+        ai_output = self.get_ai_output(user_id)
 
         for item in ai_output:  # type: ignore
             try:
@@ -132,22 +135,22 @@ class ChatMemory:
 
         return "No Answer"
 
-    def _purge_tool_msgs(self, phone: str):
-        tool_msgs = self.get_tool_msgs(phone)
-        messages = self.get_messages(phone)
+    def _purge_tool_msgs(self, user_id: int):
+        tool_msgs = self.get_tool_msgs(user_id)
+        messages = self.get_messages(user_id)
         if tool_msgs:
             clean_messages = [m for m in messages if m not in tool_msgs]
             try:
-                self.set_messages(clean_messages, phone)
+                self.set_messages(clean_messages, user_id)
             except SetMessagesError as exc:
                 print(f"Error purging tool messages: {exc}")
             finally:
-                self._clean_tool_msgs(phone)
+                self._clean_tool_msgs(user_id)
 
-    def _set_tool_output(self, call_id, function_out, phone: str):
+    def _set_tool_output(self, call_id, function_out, user_id: int):
         # Store as ephemeral tool output; do not persist in history
-        if phone not in self.__messages:
-            print(f"{phone} not found in memory")
+        if user_id not in self.__messages:
+            print(f"{user_id} not found in memory")
             return False
 
         msg = {
@@ -156,12 +159,12 @@ class ChatMemory:
             "output": str(function_out),
         }
 
-        if phone not in self.__tool_msgs:
-            self.__tool_msgs[phone] = [msg]
+        if user_id not in self.__tool_msgs:
+            self.__tool_msgs[user_id] = [msg]
         else:
-            self.__tool_msgs[phone].append(msg)
+            self.__tool_msgs[user_id].append(msg)
 
-        self.__messages[phone].append(msg)
+        self.__messages[user_id].append(msg)
 
 
 class AIClient:
@@ -231,7 +234,7 @@ class ToolRunner:
 
             self.run_futures(futures, custom_tools_called, user_id, chat_memory)
 
-    def run_futures(self, futures, tools_called, phone: str, chat_memory: ChatMemory):
+    def run_futures(self, futures, tools_called, user_id: int, chat_memory: ChatMemory):
         for future, tool in zip(futures, tools_called):
             try:
                 function_out = future.result()
@@ -240,7 +243,7 @@ class ToolRunner:
                 print(f"{tool.name}: {exc}")
                 function_out = self.ERROR_MSG
 
-            chat_memory._set_tool_output(tool.call_id, function_out, phone)
+            chat_memory._set_tool_output(tool.call_id, function_out, user_id)
 
     async def _async_run_functions(
         self, functions_called, user_id: int, chat_memory: ChatMemory, rag_functions
@@ -280,7 +283,7 @@ class ToolRunner:
         await self.run_coroutines(custom_tools_called, tasks, user_id, chat_memory)
 
     async def run_coroutines(
-        self, tools_called, tasks, phone: str, chat_memory: ChatMemory
+        self, tools_called, tasks, user_id: int, chat_memory: ChatMemory
     ):
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -291,7 +294,7 @@ class ToolRunner:
             else:
                 print(f"{tool.name}: {function_out[:100]}")  # type: ignore
 
-            chat_memory._set_tool_output(tool.call_id, function_out, phone)
+            chat_memory._set_tool_output(tool.call_id, function_out, user_id)
 
 
 class Agent:
@@ -395,6 +398,7 @@ class Agent:
         ai_msg = self.chat_memory._get_ai_msg(user_id)
         print(f"{self.name}: {ai_msg}")
         self.chat_memory.add_msg(ai_msg, MessageType.ASSISTANT.value, user_id)
+        # print(self.chat_memory.get_messages(user_id, with_prompt=False))
         return ai_msg
 
     async def async_process_msg(
