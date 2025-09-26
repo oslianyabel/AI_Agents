@@ -22,7 +22,12 @@ tools = [
     {
         "type": "custom",
         "name": "execute_query",
-        "description": "Ejecuta una consulta SQL en PostgreSQL",
+        "description": "Ejecuta una consulta de solo lectura (SELECT) en una base de datos PostgreSQL",
+    },
+    {
+        "type": "custom",
+        "name": "execute_sql_server_query",
+        "description": "Ejecuta una consulta de solo lectura (SELECT) en una base de datos SQL Server",
     },
     {
         "type": "function",

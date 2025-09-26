@@ -44,7 +44,7 @@ tools = [
     {
         "type": "function",
         "function": {
-            "name": "execute_mssql_query",
+            "name": "execute_sql_server_query",
             "description": "Ejecuta una consulta de solo lectura (SELECT) en una base de datos SQL Server disponible",
             "parameters": {
                 "type": "object",

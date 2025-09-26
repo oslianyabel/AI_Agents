@@ -43,9 +43,9 @@ except ImportError:
     print("Warning: PostgreSQL tool not available (missing psycopg2)")
 
 try:
-    from tools.mssql_tool import execute_mssql_query
+    from tools.sql_server_tool import execute_sql_server_query
 
-    rag_functions["execute_mssql_query"] = execute_mssql_query
+    rag_functions["execute_sql_server_query"] = execute_sql_server_query
 except ImportError:
     print("Warning: MSSQL tool not available (missing pyodbc)")
 

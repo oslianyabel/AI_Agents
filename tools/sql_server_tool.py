@@ -47,11 +47,11 @@ def get_sqlserver_connection():
         return e
 
 
-async def async_execute_mssql_query(input_query: str) -> json:
-    return execute_mssql_query(input_query)
+async def async_execute_sql_server_query(input_query: str) -> json:
+    return execute_sql_server_query(input_query)
 
 
-def execute_mssql_query(input_query: str) -> json:
+def execute_sql_server_query(input_query: str) -> json:
     """
     Ejecuta una consulta de solo lectura (SELECT) en SQL Server.
 
@@ -114,7 +114,7 @@ def execute_mssql_query(input_query: str) -> json:
 if __name__ == "__main__":
     def main():
         # Consulta de prueba: lista las tablas del esquema dbo
-        result = execute_mssql_query(
+        result = execute_sql_server_query(
             "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_SCHEMA, TABLE_NAME;"
         )
         print(result)
