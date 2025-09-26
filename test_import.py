@@ -25,12 +25,12 @@ def test_imports():
         return False
     
     try:
-        print("\n2. Testing completions_v3 import...")
-        from completions_v3 import Agent
-        print("✓ completions_v3 imported successfully")
+        print("\n2. Testing agent_v2 import...")
+        from agent_v2 import Agent
+        print("✓ agent_v2 imported successfully")
         
     except Exception as e:
-        print(f"✗ Error importing completions_v3: {e}")
+        print(f"✗ Error importing agent_v2: {e}")
         return False
     
     try:

@@ -108,6 +108,5 @@ def manipulate_xlsx(
         )
 
 
-# Versión asíncrona (para Completions_v3)
 async def async_manipulate_xlsx(*args, **kwargs) -> str:
     return manipulate_xlsx(*args, **kwargs)

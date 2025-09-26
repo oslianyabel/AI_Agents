@@ -5,7 +5,7 @@ Test script for proxy configuration with OpenAI SDK
 
 import os
 from dotenv import load_dotenv
-from completions_v3 import Agent
+from agent_v2 import Agent
 from proxy_config import ProxyConfig
 
 # Load environment variables

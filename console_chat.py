@@ -7,7 +7,8 @@ Provides an interactive console interface for conversing with the Agent.
 import sys
 import os
 from typing import Optional
-from completions_v3 import Agent
+from agent_v2 import Agent
+from agent import Agent as OpenAIAgent
 from enumerations import ModelType
 from functions import get_current_datetime, get_current_weather
 
@@ -22,48 +23,69 @@ rag_prompt = []
 # Try to import optional tools
 try:
     from tools.email_tool import send_email
+
     rag_functions["send_email"] = send_email
 except ImportError:
     print("Warning: Email tool not available (missing dependencies)")
 
 try:
     from tools.excel_tool import manipulate_xlsx
+
     rag_functions["manipulate_xlsx"] = manipulate_xlsx
 except ImportError:
     print("Warning: Excel tool not available (missing openpyxl)")
 
 try:
     from tools.pg_tool import execute_query
+
     rag_functions["execute_query"] = execute_query
 except ImportError:
     print("Warning: PostgreSQL tool not available (missing psycopg2)")
 
 try:
     from tools.mssql_tool import execute_mssql_query
+
     rag_functions["execute_mssql_query"] = execute_mssql_query
 except ImportError:
     print("Warning: MSSQL tool not available (missing pyodbc)")
 
 try:
-    from json_tools_v2 import tools as rag_prompt
-except ImportError:
-    try:
+    if os.getenv("AGENT_VERSION") == "OPENAI":
         from json_tools import tools as rag_prompt
-    except ImportError:
-        print("Warning: RAG prompt tools not available")
-        rag_prompt = []
+    else:
+        from json_tools_v2 import tools as rag_prompt
+except ImportError:
+    print("Warning: RAG prompt tools not available")
+    rag_prompt = []
 
 
 class ConsoleChat:
     """Interactive console chat interface for the Agent."""
 
     def __init__(
-        self, 
-        agent_name: str = "Assistant", 
-        model: str = ModelType.AGENT_MD.value,
-        proxy_url: str = None
+        self,
+        agent_name: str = "Assistant",
     ):
-        self.agent = Agent(name=agent_name, model=model, proxy_url=proxy_url)
+        agent_version = os.getenv("AGENT_VERSION").upper()
+
+        if agent_version == "OPENAI":
+            openai_model = os.getenv("OPENAI_MODEL")
+            self.agent = OpenAIAgent(name=agent_name, model=openai_model)
+            print(f"Using OpenAI Agent with model: {openai_model}")
+        else:
+            avangenio_model = os.getenv("AVANGENIO_MODEL")
+
+            proxy_url = os.getenv("HTTP_PROXY")
+            if proxy_url:
+                print(f"Proxy detectado: {proxy_url[:50]}...")
+                self.agent = Agent(
+                    name=agent_name, model=avangenio_model, proxy_url=proxy_url
+                )
+            else:
+                self.agent = Agent(name=agent_name, model=avangenio_model)
+
+            print(f"Using Avangenio Agent with model: {avangenio_model}")
+
         self.user_id = 1  # Using a fixed channel ID for console chat
         self.running = True
 
@@ -159,9 +181,9 @@ class ConsoleChat:
         # Calculate the width based on the message length
         content = f"🔧 {self.agent.name}: {message}"
         width = max(50, len(content) + 4)  # Minimum 50 chars, or content + padding
-        
+
         print("\n" + "=" * width)
-        print(f"= {content:<{width-4}} =")
+        print(f"= {content:<{width - 4}} =")
         print("=" * width)
 
     def process_message(self, message: str) -> None:
@@ -223,42 +245,11 @@ class ConsoleChat:
 
 
 def main():
-    """Main function to run the console chat."""
-    # Parse command line arguments for customization
-    agent_name = "Asistente IA"
-    model = ModelType.AGENT_MD.value
-    proxy_url = None
-
-    if len(sys.argv) > 1:
-        agent_name = sys.argv[1]
-    if len(sys.argv) > 2:
-        if ModelType.has_value(sys.argv[2]):
-            model = sys.argv[2]
-        else:
-            print(f"Modelo no válido: {sys.argv[2]}")
-            print(f"Modelos disponibles: {ModelType.list_values()}")
-            sys.exit(1)
-    if len(sys.argv) > 3:
-        proxy_url = sys.argv[3]
-        print(f"Usando proxy: {proxy_url}")
-
-    # Check for required environment variables
-    if not os.getenv("AVANGENIO_API_KEY"):
-        print("Error: La variable de entorno AVANGENIO_API_KEY no está configurada.")
-        print("Por favor, configura tu clave API antes de ejecutar el chat.")
-        sys.exit(1)
-
-    # Show proxy information
-    if proxy_url or os.getenv("HTTP_PROXY"):
-        proxy_to_use = proxy_url or os.getenv("HTTP_PROXY")
-        print(f"Configuración de proxy detectada: {proxy_to_use[:50]}...")
-
-    # Create and run the console chat
     try:
-        chat = ConsoleChat(agent_name=agent_name, model=model, proxy_url=proxy_url)
+        chat = ConsoleChat(agent_name="Console Agent")
         chat.run()
-    except Exception as e:
-        print(f"Error al inicializar el chat: {e}")
+    except Exception as exc:
+        print(f"Error al inicializar el chat: {exc}")
         sys.exit(1)
 
 

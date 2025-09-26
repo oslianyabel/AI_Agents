@@ -23,103 +23,83 @@ tools = [
         "type": "custom",
         "name": "execute_query",
         "description": "Ejecuta una consulta SQL en PostgreSQL",
-    } 
-]
-
-email_tool = {
-    "type": "function",
-    "name": "send_email",
-    "description": "Envía un correo electrónico desde una cuenta de Gmail con opción de adjuntar archivos",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "to": {
-                "type": "string",
-                "description": "Dirección de correo electrónico del destinatario",
-            },
-            "subject": {
-                "type": "string",
-                "description": "Asunto del correo electrónico",
-            },
-            "body": {
-                "type": "string",
-                "description": "Cuerpo del mensaje",
-            },
-            "is_html": {
-                "type": "boolean",
-                "description": "Indica si el cuerpo es HTML (opcional, por defecto es falso)",
-            },
-            "attachments": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "filename": {
-                            "type": "string",
-                            "description": "Nombre del archivo adjunto"
-                        },
-                    },
-                    "required": ["filename"]
-                },
-                "description": "Lista de archivos adjuntos (opcional)"
-            }
-        },
-        "required": ["to", "subject", "body"],
     },
-}
-
-xlsx_tool = {
-    "type": "function",
-    "name": "manipulate_xlsx",
-    "description": "Lee, escribe o modifica archivos Excel (.xlsx) en el directorio raíz",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "operation": {
-                "type": "string",
-                "enum": ["read", "write", "append", "list_files"],
-                "description": "Operación a realizar: 'read' para leer, 'write' para escribir nuevo archivo, 'append' para añadir datos, 'list_files' para listar archivos .xlsx"
-            },
-            "filename": {
-                "type": "string",
-                "description": "Nombre del archivo .xlsx (no requerido para list_files)"
-            },
-            "sheet_name": {
-                "type": "string",
-                "description": "Nombre de la hoja en el archivo Excel",
-                "default": "Sheet1"
-            },
-            "data": {
-                "type": "array",
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "description": "Datos a escribir o añadir (solo para operaciones write/append)"
-            },
-            "header": {
-                "type": "boolean",
-                "description": "Indica si los datos incluyen encabezados",
-                "default": False
-            }
-        },
-        "required": ["operation"]
-    }
-}
-
-tools.append(email_tool)
-tools.append(xlsx_tool)
-tools.append(
     {
         "type": "function",
-        "name": "reset_history",
-        "description": "Borra el historial de la conversación dejando solo el prompt inicial.",
-        "parameters": {"type": "object", "properties": {}},
-    }
-)
+        "name": "send_email",
+        "description": "Envía un correo electrónico desde una cuenta de Gmail con opción de adjuntar archivos",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "to": {
+                    "type": "string",
+                    "description": "Dirección de correo electrónico del destinatario",
+                },
+                "subject": {
+                    "type": "string",
+                    "description": "Asunto del correo electrónico",
+                },
+                "body": {
+                    "type": "string",
+                    "description": "Cuerpo del mensaje",
+                },
+                "is_html": {
+                    "type": "boolean",
+                    "description": "Indica si el cuerpo es HTML (opcional, por defecto es falso)",
+                },
+                "attachments": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "filename": {
+                                "type": "string",
+                                "description": "Nombre del archivo adjunto",
+                            },
+                        },
+                        "required": ["filename"],
+                    },
+                    "description": "Lista de archivos adjuntos (opcional)",
+                },
+            },
+            "required": ["to", "subject", "body"],
+        },
+    },
+    {
+        "type": "function",
+        "name": "manipulate_xlsx",
+        "description": "Lee, escribe o modifica archivos Excel (.xlsx) en el directorio raíz",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "operation": {
+                    "type": "string",
+                    "enum": ["read", "write", "append", "list_files"],
+                    "description": "Operación a realizar: 'read' para leer, 'write' para escribir nuevo archivo, 'append' para añadir datos, 'list_files' para listar archivos .xlsx",
+                },
+                "filename": {
+                    "type": "string",
+                    "description": "Nombre del archivo .xlsx (no requerido para list_files)",
+                },
+                "sheet_name": {
+                    "type": "string",
+                    "description": "Nombre de la hoja en el archivo Excel",
+                    "default": "Sheet1",
+                },
+                "data": {
+                    "type": "array",
+                    "items": {"type": "array", "items": {"type": "string"}},
+                    "description": "Datos a escribir o añadir (solo para operaciones write/append)",
+                },
+                "header": {
+                    "type": "boolean",
+                    "description": "Indica si los datos incluyen encabezados",
+                    "default": False,
+                },
+            },
+            "required": ["operation"],
+        },
+    },
+]
 
-table_names = """
-{"tables": [{"table_name": "activity_attachment_rel"}, {"table_name": "auth_oauth_provider"}, {"table_name": "auth_totp_device"}, {"table_name": "auth_totp_wizard"}, {"table_name": "base_document_layout"}, {"table_name": "base_enable_profiling_wizard"}, {"table_name": "base_import_import"}, {"table_name": "base_import_mapping"}, {"table_name": "base_import_module"}, {"table_name": "base_language_export"}, {"table_name": "base_language_import"}, {"table_name": "base_language_install"}, {"table_name": "base_module_install_request"}, {"table_name": "base_module_install_review"}, {"table_name": "base_module_uninstall"}, {"table_name": "base_module_update"}, {"table_name": "base_module_upgrade"}, {"table_name": "base_partner_merge_automatic_wizard"}, {"table_name": "base_partner_merge_automatic_wizard_res_partner_rel"}, {"table_name": "base_partner_merge_line"}, {"table_name": "bus_bus"}, {"table_name": "bus_presence"}, {"table_name": "change_password_own"}, {"table_name": "change_password_user"}, {"table_name": "change_password_wizard"}, {"table_name": "decimal_precision"}, {"table_name": "discuss_channel"}, {"table_name": "discuss_channel_member"}, {"table_name": "discuss_channel_res_groups_rel"}, {"table_name": "discuss_channel_rtc_session"}, {"table_name": "discuss_gif_favorite"}, {"table_name": "discuss_voice_metadata"}, {"table_name": "email_template_attachment_rel"}, {"table_name": "fetchmail_server"}, {"table_name": "iap_account"}, {"table_name": "iap_account_info"}, {"table_name": "iap_account_res_company_rel"}, {"table_name": "ir_act_client"}, {"table_name": "ir_act_report_xml"}, {"table_name": "ir_act_server"}, {"table_name": "ir_act_server_group_rel"}, {"table_name": "ir_act_server_res_partner_rel"}, {"table_name": "ir_act_server_webhook_field_rel"}, {"table_name": "ir_act_url"}, {"table_name": "ir_act_window"}, {"table_name": "ir_act_window_group_rel"}, {"table_name": "ir_act_window_view"}, {"table_name": "ir_actions"}, {"table_name": "ir_actions_todo"}, {"table_name": "ir_asset"}, {"table_name": "ir_attachment"}, {"table_name": "ir_config_parameter"}, {"table_name": "ir_cron"}, {"table_name": "ir_cron_trigger"}, {"table_name": "ir_default"}, {"table_name": "ir_demo"}, {"table_name": "ir_demo_failure"}, {"table_name": "ir_demo_failure_wizard"}, {"table_name": "ir_exports"}, {"table_name": "ir_exports_line"}, {"table_name": "ir_filters"}, {"table_name": "ir_logging"}, {"table_name": "ir_mail_server"}, {"table_name": "ir_model"}, {"table_name": "ir_model_access"}, {"table_name": "ir_model_constraint"}, {"table_name": "ir_model_data"}, {"table_name": "ir_model_fields"}, {"table_name": "ir_model_fields_group_rel"}, {"table_name": "ir_model_fields_muk_rest_endpoint_rel"}, {"table_name": "ir_model_fields_selection"}, {"table_name": "ir_model_inherit"}, {"table_name": "ir_model_relation"}, {"table_name": "ir_module_category"}, {"table_name": "ir_module_module"}, {"table_name": "ir_module_module_dependency"}, {"table_name": "ir_module_module_exclusion"}, {"table_name": "ir_profile"}, {"table_name": "ir_property"}, {"table_name": "ir_rule"}, {"table_name": "ir_sequence"}, {"table_name": "ir_sequence_date_range"}, {"table_name": "ir_ui_menu"}, {"table_name": "ir_ui_menu_group_rel"}, {"table_name": "ir_ui_view"}, {"table_name": "ir_ui_view_custom"}, {"table_name": "ir_ui_view_group_rel"}, {"table_name": "mail_activity"}, {"table_name": "mail_activity_plan"}, {"table_name": "mail_activity_plan_mail_activity_schedule_rel"}, {"table_name": "mail_activity_plan_template"}, {"table_name": "mail_activity_rel"}, {"table_name": "mail_activity_schedule"}, {"table_name": "mail_activity_type"}, {"table_name": "mail_activity_type_mail_template_rel"}, {"table_name": "mail_alias"}, {"table_name": "mail_alias_domain"}, {"table_name": "mail_blacklist"}, {"table_name": "mail_blacklist_remove"}, {"table_name": "mail_compose_message"}, {"table_name": "mail_compose_message_ir_attachments_rel"}, {"table_name": "mail_compose_message_res_partner_rel"}, {"table_name": "mail_followers"}, {"table_name": "mail_followers_mail_message_subtype_rel"}, {"table_name": "mail_gateway_allowed"}, {"table_name": "mail_guest"}, {"table_name": "mail_ice_server"}, {"table_name": "mail_link_preview"}, {"table_name": "mail_mail"}, {"table_name": "mail_mail_res_partner_rel"}, {"table_name": "mail_message"}, {"table_name": "mail_message_reaction"}, {"table_name": "mail_message_res_partner_rel"}, {"table_name": "mail_message_res_partner_starred_rel"}, {"table_name": "mail_message_schedule"}, {"table_name": "mail_message_subtype"}, {"table_name": "mail_message_translation"}, {"table_name": "mail_notification"}, {"table_name": "mail_notification_mail_resend_message_rel"}, {"table_name": "mail_notification_web_push"}, {"table_name": "mail_partner_device"}, {"table_name": "mail_resend_message"}, {"table_name": "mail_resend_partner"}, {"table_name": "mail_shortcode"}, {"table_name": "mail_template"}, {"table_name": "mail_template_ir_actions_report_rel"}, {"table_name": "mail_template_mail_template_reset_rel"}, {"table_name": "mail_template_preview"}, {"table_name": "mail_template_reset"}, {"table_name": "mail_tracking_value"}, {"table_name": "mail_wizard_invite"}, {"table_name": "mail_wizard_invite_res_partner_rel"}, {"table_name": "message_attachment_rel"}, {"table_name": "muk_rest_access_rules"}, {"table_name": "muk_rest_access_rules_expression"}, {"table_name": "muk_rest_access_token"}, {"table_name": "muk_rest_authorization_code"}, {"table_name": "muk_rest_bearer_token"}, {"table_name": "muk_rest_callback"}, {"table_name": "muk_rest_client_generator"}, {"table_name": "muk_rest_endpoint"}, {"table_name": "muk_rest_logging"}, {"table_name": "muk_rest_oauth"}, {"table_name": "muk_rest_oauth1"}, {"table_name": "muk_rest_oauth2"}, {"table_name": "muk_rest_request_data"}, {"table_name": "muk_rest_request_token"}, {"table_name": "phone_blacklist"}, {"table_name": "phone_blacklist_remove"}, {"table_name": "privacy_log"}, {"table_name": "privacy_lookup_wizard"}, {"table_name": "privacy_lookup_wizard_line"}, {"table_name": "rel_modules_langexport"}, {"table_name": "rel_server_actions"}, {"table_name": "report_layout"}, {"table_name": "report_paperformat"}, {"table_name": "res_bank"}, {"table_name": "res_company"}, {"table_name": "res_company_users_rel"}, {"table_name": "res_config"}, {"table_name": "res_config_installer"}, {"table_name": "res_config_settings"}, {"table_name": "res_country"}, {"table_name": "res_country_group"}, {"table_name": "res_country_res_country_group_rel"}, {"table_name": "res_country_state"}, {"table_name": "res_currency"}, {"table_name": "res_currency_rate"}, {"table_name": "res_groups"}, {"table_name": "res_groups_implied_rel"}, {"table_name": "res_groups_report_rel"}, {"table_name": "res_groups_users_rel"}, {"table_name": "res_lang"}, {"table_name": "res_lang_install_rel"}, {"table_name": "res_partner"}, {"table_name": "res_partner_autocomplete_sync"}, {"table_name": "res_partner_bank"}, {"table_name": "res_partner_category"}, {"table_name": "res_partner_industry"}, {"table_name": "res_partner_res_partner_category_rel"}, {"table_name": "res_partner_title"}, {"table_name": "res_users"}, {"table_name": "res_users_apikeys"}, {"table_name": "res_users_apikeys_description"}, {"table_name": "res_users_deletion"}, {"table_name": "res_users_identitycheck"}, {"table_name": "res_users_log"}, {"table_name": "res_users_settings"}, {"table_name": "res_users_settings_volumes"}, {"table_name": "reset_view_arch_wizard"}, {"table_name": "rule_group_rel"}, {"table_name": "sms_composer"}, {"table_name": "sms_resend"}, {"table_name": "sms_resend_recipient"}, {"table_name": "sms_sms"}, {"table_name": "sms_template"}, {"table_name": "sms_template_preview"}, {"table_name": "sms_template_reset"}, {"table_name": "sms_template_sms_template_reset_rel"}, {"table_name": "sms_tracker"}, {"table_name": "snailmail_letter"}, {"table_name": "snailmail_letter_format_error"}, {"table_name": "snailmail_letter_missing_required_fields"}, {"table_name": "web_editor_converter_test"}, {"table_name": "web_editor_converter_test_sub"}, {"table_name": "web_tour_tour"}, {"table_name": "wizard_ir_model_menu_create"}], "row_count": 207}
-"""
+print("OPENAI tools loaded")
